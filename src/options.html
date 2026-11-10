@@ -13,27 +13,10 @@
       </header>
 
       <section>
-        <h2>Groq API</h2>
-        <label>API ключ
-          <div class="row">
-            <input id="apiKey" type="password" placeholder="gsk_..." autocomplete="off" />
-            <button id="toggleKey" class="ghost" type="button">👁</button>
-            <button id="testKey" type="button">Перевірити</button>
-          </div>
-        </label>
-        <p class="muted">Безкоштовний ключ: <a href="https://console.groq.com/keys" target="_blank">console.groq.com/keys</a>. Ключ зберігається лише локально в браузері.</p>
-        <p id="keyStatus" class="muted"></p>
-      </section>
-
-      <section>
-        <h2>Моделі для кожного етапу</h2>
-        <p class="muted">Різні моделі = різні ліміти безкоштовного тарифу, тому навантаження розкидано. Після «Перевірити» список заповниться доступними моделями.</p>
-        <div class="grid2">
-          <label>1. Контекст поста <input id="m_context" list="models" /></label>
-          <label>2. Генерація реплаїв <input id="m_generate" list="models" /></label>
-          <label>3. Перевірка грамотності <input id="m_grammar" list="models" /></label>
-          <label>4. Оцінка (чіпляє / авторське) <input id="m_critic" list="models" /></label>
-        </div>
+        <h2>4 API — кожне робить свою роботу</h2>
+        <p class="muted">Кожен етап має свій ключ Groq (можна з різних акаунтів, тоді ліміти безкоштовного тарифу не перетинаються) і свою модель. Обов'язкова лише <b>генерація</b>. Інші етапи можна вимкнути або залишити без ключа, і розширення працюватиме без них. Безкоштовний ключ: <a href="https://console.groq.com/keys" target="_blank">console.groq.com/keys</a>. Ключі зберігаються лише локально.</p>
+        <div id="stages"></div>
+        <label class="chk"><input id="keyFallback" type="checkbox" /> Якщо в етапу порожній ключ, брати ключ генерації (замість того, щоб пропускати етап)</label>
         <datalist id="models">
           <option value="openai/gpt-oss-120b"></option>
           <option value="openai/gpt-oss-20b"></option>
@@ -124,9 +107,7 @@
 
       <section>
         <h2>Перевірки</h2>
-        <label class="chk"><input id="stageGrammar" type="checkbox" /> Етап 3: перевірка орфографії і граматики (LLM-коректор)</label>
-        <label class="chk"><input id="languageTool" type="checkbox" /> + LanguageTool (безкоштовний спелчекер, підказки для коректора)</label>
-        <label class="chk"><input id="stageCritic" type="checkbox" /> Етап 4: оцінка — чи чіпляє автора і чи звучить по-людськи</label>
+        <label class="chk"><input id="languageTool" type="checkbox" /> + LanguageTool (безкоштовний спелчекер, без ключа; підказки для етапу 3)</label>
         <div class="grid2">
           <label>Мінімальна оцінка: <b id="minScoreVal"></b>
             <input id="minScore" type="range" min="3" max="9" step="0.5" />

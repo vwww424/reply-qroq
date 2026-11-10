@@ -32,8 +32,8 @@ function retryAfterMs(res, attempt) {
  * Виклик Groq chat completions (OpenAI-сумісний). Повертає розпарсений JSON.
  * onWait(ms) — щоб показати в UI, що чекаємо через rate limit.
  */
-export async function chatJson({ settings, model, system, user, temperature = 0.4, maxTokens = 2500, onWait }) {
-  if (!settings.apiKey) throw new ApiError('Немає API ключа Groq. Додай його в налаштуваннях розширення.', 401, 'no_key');
+export async function chatJson({ settings, apiKey, model, system, user, temperature = 0.4, maxTokens = 2500, onWait }) {
+  if (!apiKey) throw new ApiError('Немає API ключа Groq для генерації. Додай його в налаштуваннях розширення.', 401, 'no_key');
   let useJsonMode = true;
 
   for (let attempt = 0; attempt < 5; attempt++) {
@@ -58,7 +58,7 @@ export async function chatJson({ settings, model, system, user, temperature = 0.
     try {
       res = await fetch(`${settings.apiBase.replace(/\/$/, '')}/chat/completions`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${settings.apiKey}`, 'Content-Type': 'application/json' },
+        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
     } catch (e) {
@@ -110,9 +110,10 @@ export async function chatJson({ settings, model, system, user, temperature = 0.
   throw new ApiError('Groq не відповідає (ліміти). Спробуй через хвилину.', 429, 'rate_limit');
 }
 
-export async function listModels(settings) {
+export async function listModels(settings, apiKey) {
+  if (!apiKey) throw new ApiError('Ключ порожній', 401);
   const res = await fetch(`${settings.apiBase.replace(/\/$/, '')}/models`, {
-    headers: { Authorization: `Bearer ${settings.apiKey}` },
+    headers: { Authorization: `Bearer ${apiKey}` },
   });
   if (!res.ok) throw new ApiError(res.status === 401 ? 'Невірний API ключ' : `HTTP ${res.status}`, res.status);
   const data = await res.json();

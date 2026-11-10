@@ -252,8 +252,11 @@ certainly
 `;
 
 export const DEFAULT_SETTINGS = {
-  apiKey: '',
+  // Окремий ключ на кожен етап (можна з різних акаунтів Groq — окремі ліміти).
+  keys: { context: '', generate: '', grammar: '', critic: '' },
+  keyFallback: false, // порожній ключ етапу → брати ключ генерації
   apiBase: 'https://api.groq.com/openai/v1',
+  stageContext: true,
   models: {
     context: 'openai/gpt-oss-20b',
     generate: 'openai/gpt-oss-120b',
@@ -310,9 +313,29 @@ export const LANG_NAMES = {
   ru: 'українська', // на російський пост все одно відповідаємо українською
 };
 
+export const STAGE_IDS = ['context', 'generate', 'grammar', 'critic'];
+
+export function keyFor(settings, stage) {
+  const own = (settings.keys?.[stage] || '').trim();
+  if (own) return own;
+  return settings.keyFallback ? (settings.keys?.generate || '').trim() : '';
+}
+
+/** Чому етап не запуститься ('' = запуститься). Генерація обов'язкова, інші — опційні. */
+export function stageOff(settings, stage) {
+  const flag = { context: 'stageContext', grammar: 'stageGrammar', critic: 'stageCritic' }[stage];
+  if (flag && !settings[flag]) return 'вимкнено';
+  if (!keyFor(settings, stage)) return 'немає ключа';
+  return '';
+}
+
 export function mergeSettings(stored = {}) {
   const s = { ...DEFAULT_SETTINGS, ...stored };
   s.models = { ...DEFAULT_SETTINGS.models, ...(stored.models || {}) };
+  s.keys = { ...DEFAULT_SETTINGS.keys, ...(stored.keys || {}) };
+  // міграція зі старої версії з одним ключем
+  if (stored.apiKey && !s.keys.generate) s.keys.generate = stored.apiKey;
+  delete s.apiKey;
   if (!Array.isArray(s.styles) || !s.styles.length) s.styles = DEFAULT_STYLES;
   return s;
 }

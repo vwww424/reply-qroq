@@ -9,8 +9,9 @@ async function getSettings() {
 
 chrome.runtime.onInstalled.addListener(async () => {
   const { settings } = await chrome.storage.local.get('settings');
-  await chrome.storage.local.set({ settings: mergeSettings(settings) });
-  if (!settings?.apiKey) chrome.runtime.openOptionsPage();
+  const merged = mergeSettings(settings);
+  await chrome.storage.local.set({ settings: merged });
+  if (!merged.keys.generate) chrome.runtime.openOptionsPage();
 });
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
@@ -19,7 +20,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       case 'getSettings':
         return getSettings();
       case 'listModels':
-        return { models: await listModels({ ...(await getSettings()), ...(msg.override || {}) }) };
+        return { models: await listModels(await getSettings(), (msg.apiKey || '').trim()) };
       case 'openOptions':
         chrome.runtime.openOptionsPage();
         return true;

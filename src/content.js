@@ -326,8 +326,8 @@
               return `<div class="st ${s.status || ''}"><span class="ic">${ic}</span><span>${label}</span><span class="nt">${esc(s.note || '')}</span></div>`;
             }).join('')}</div>`
           : '';
-      const noKey = !settings.apiKey
-        ? `<div class="err">Немає API ключа Groq. <a href="#" data-act="opts">Відкрити налаштування</a> (ключ безкоштовно: console.groq.com/keys)</div>`
+      const noKey = !settings.keys?.generate
+        ? `<div class="err">Немає ключа для генерації (API №2) — без нього не працює. <a href="#" data-act="opts">Відкрити налаштування</a> (ключ безкоштовно: console.groq.com/keys)</div>`
         : '';
       cur.el.innerHTML = `
         <div class="hd"><b>✍️ Реплай</b>
@@ -364,7 +364,7 @@
       return `<div class="card ${i === 0 ? 'best' : ''}" data-i="${i}">
         <textarea data-i="${i}" rows="3">${esc(r.text)}</textarea>
         <div class="meta">
-          <span class="badge score ${cls(r.score)}" title="Загальна оцінка">${r.score}/10</span>
+          ${c ? `<span class="badge score ${cls(r.score)}" title="Загальна оцінка">${r.score}/10</span>` : ''}
           ${
             c
               ? `<span class="badge ${cls(c.relevance)}" title="Релевантність посту">🎯 ${c.relevance}</span>

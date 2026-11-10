@@ -26,20 +26,20 @@ const server = http.createServer((req, res) => {
     const sys = j.messages?.[0]?.content || '';
     let out;
     if (sys.includes('аналітик')) {
-      calls.push('context');
+      calls.push('context:' + req.headers.authorization.slice(7));
       out = { post_language: 'en', summary_uk: 'Автор каже, що 90% стартапів провалюються через погану команду, а не продукт.', translation_uk: '90% стартапів помирають через команду. Продукт — другорядне.', topic: 'стартапи і команди', tone: 'впевнене твердження', key_claims: ['90%'], weak_spots: ['цифра з повітря'], reply_angles: ['поставити під сумнів цифру'], sensitive: false };
     } else if (sys.includes('пишеш відповіді')) {
-      calls.push('generate');
+      calls.push('generate:' + req.headers.authorization.slice(7));
       out = { replies: [
         { text: '90% звідки? Половина "поганих команд" просто будувала те, що нікому не треба', angle: 'сумнів у цифрі' },
         { text: 'Це не просто команда, а ціла культура — варто зазначити #startup', angle: 'слоп для перевірки' },
         { text: 'команда погана рівно до того моменту, поки продукт не почав продаватись', angle: 'іронія' },
       ] };
     } else if (sys.includes('коректор')) {
-      calls.push('grammar');
+      calls.push('grammar:' + req.headers.authorization.slice(7));
       out = { items: [{ i: 3, text: 'Команда погана рівно до моменту, поки продукт не почав продаватися', fixes: ['продаватись → продаватися', 'до того моменту → до моменту'] }] };
     } else if (sys.includes('редактор')) {
-      calls.push('critic');
+      calls.push('critic:' + req.headers.authorization.slice(7));
       out = { items: [
         { i: 1, relevance: 9, human: 9, hook: 8, risk: 2, generic: false, triggers_author: true, ai_tells: [], verdict: 'ok', comment: 'Б\'є в цифру, звучить живо' },
         { i: 2, relevance: 4, human: 2, hook: 3, risk: 1, generic: true, triggers_author: false, ai_tells: ['не просто команда, а ціла культура'], verdict: 'reject', comment: 'Шаблон ШІ' },
@@ -67,7 +67,7 @@ await sw.evaluate(async (port) => {
   for (let i = 0; i < 50; i++) {
     const { settings } = await chrome.storage.local.get('settings');
     if (settings) {
-      await chrome.storage.local.set({ settings: { ...settings, apiKey: 'test', apiBase: `http://127.0.0.1:${port}`, languageTool: false } });
+      await chrome.storage.local.set({ settings: { ...settings, keys: { context: 'k1', generate: 'k2', grammar: 'k3', critic: 'k4' }, apiBase: `http://127.0.0.1:${port}`, languageTool: false } });
       return;
     }
     await new Promise((r) => setTimeout(r, 100));
@@ -104,6 +104,7 @@ const cards = await page.evaluate(() =>
   }))
 );
 console.log('calls:', calls.join(' → '));
+if (calls.join() !== 'context:k1,generate:k2,grammar:k3,critic:k4') throw new Error('each stage must use its own key');
 console.log(JSON.stringify(cards, null, 1));
 // вставити найкращий
 await page.evaluate(() => document.getElementById('trh-host').shadowRoot.querySelector('[data-act="insert"]').click());
@@ -114,9 +115,28 @@ await new Promise(r=>setTimeout(r,800)); const hist = await sw.evaluate(async ()
 console.log('history entries:', hist?.length, hist?.[0]?.author);
 if (hist?.[0]?.author !== '@startupguru') throw new Error('author not parsed');
 
+// Сценарій B: лише ключ генерації — решта етапів пропускаються, реплаї все одно є.
+calls.length = 0;
+await sw.evaluate(async () => {
+  const { settings } = await chrome.storage.local.get('settings');
+  await chrome.storage.local.set({ settings: { ...settings, keys: { context: '', generate: 'k2', grammar: '', critic: '' } } });
+});
+await page.keyboard.press('Escape');
+await page.evaluate(() => document.querySelector('[role="dialog"]')?.remove());
+await page.click('article:nth-of-type(2) .trh-btn');
+await page.waitForFunction(() => document.getElementById('trh-host')?.shadowRoot.querySelector('[data-act="go"]'));
+await page.evaluate(() => document.getElementById('trh-host').shadowRoot.querySelector('[data-act="go"]').click());
+await page.waitForFunction(() => document.getElementById('trh-host').shadowRoot.querySelectorAll('.card').length > 0, { timeout: 15000 });
+const steps = await page.evaluate(() =>
+  [...document.getElementById('trh-host').shadowRoot.querySelectorAll('.st')].map((s) => `${s.className.replace('st ', '')}:${s.querySelector('.nt').textContent}`)
+);
+console.log('only-generate calls:', calls.join(), '| steps:', steps.join(' | '));
+if (calls.join() !== 'generate:k2') throw new Error('optional stages must be skipped without keys');
+await page.screenshot({ path: `${OUT}/5-only-generate.png` });
+
 const opt = await browser.newPage();
 await opt.goto(`chrome-extension://${extId}/src/options.html`);
-await opt.waitForSelector('.style');
+await opt.waitForSelector('.stage');
 await opt.screenshot({ path: `${OUT}/4-options.png`, fullPage: false });
 await browser.close();
 server.close();

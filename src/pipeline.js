@@ -10,13 +10,16 @@ import {
   grammarUser,
   postToText,
 } from './prompts.js';
+import { keyFor, stageOff } from './defaults.js';
 
 const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 const num = (v) => clamp(Number(v) || 0, 0, 10);
 
-function replyLang(settings, ctx) {
+function replyLang(settings, ctx, post) {
   if (settings.replyLanguage !== 'auto') return settings.replyLanguage || 'uk';
-  const l = String(ctx?.post_language || 'uk').toLowerCase().slice(0, 2);
+  let l = String(ctx?.post_language || '').toLowerCase().slice(0, 2);
+  // без етапу контексту — груба евристика за алфавітом
+  if (!l) l = /[a-z]/i.test(post?.text || '') && !/[а-яіїєґ]/i.test(post?.text || '') ? 'en' : 'uk';
   return l === 'ru' ? 'uk' : l;
 }
 
@@ -46,27 +49,37 @@ export async function runPipeline({ settings, post, styleId, hint, refine, conte
   settings = { ...settings, _bannedList: bannedList };
   const style = settings.styles.find((s) => s.id === styleId) || settings.styles[0];
   const waitNote = (stage) => (ms) => emit({ stage, status: 'wait', note: `ліміт Groq, чекаю ${Math.ceil(ms / 1000)}с` });
+  const off = Object.fromEntries(['context', 'grammar', 'critic'].map((k) => [k, stageOff(settings, k)]));
 
-  // 1. Контекст
+  // 1. Контекст (опційно: без нього генерація бачить лише сирий пост)
   let ctx = context;
   if (ctx) {
     emit({ stage: 'context', status: 'skip', note: 'вже проаналізовано' });
+  } else if (off.context) {
+    ctx = null;
+    emit({ stage: 'context', status: 'skip', note: off.context });
   } else {
     emit({ stage: 'context', status: 'run' });
-    ctx = await chatJson({
-      settings,
-      model: settings.models.context,
-      system: CONTEXT_SYSTEM,
-      user: postToText(post),
-      temperature: 0.2,
-      maxTokens: 1800,
-      onWait: waitNote('context'),
-    });
-    emit({ stage: 'context', status: 'done', note: ctx.topic || '' });
+    try {
+      ctx = await chatJson({
+        settings,
+        apiKey: keyFor(settings, 'context'),
+        model: settings.models.context,
+        system: CONTEXT_SYSTEM,
+        user: postToText(post),
+        temperature: 0.2,
+        maxTokens: 1800,
+        onWait: waitNote('context'),
+      });
+      emit({ stage: 'context', status: 'done', note: ctx.topic || '' });
+    } catch (e) {
+      ctx = null;
+      emit({ stage: 'context', status: 'error', note: `${e.message} — продовжую без нього` });
+    }
   }
-  const lang = replyLang(settings, ctx);
+  const lang = replyLang(settings, ctx, post);
   const count = refine ? 2 : clamp(Number(settings.variants) || 3, 1, 5);
-  const rounds = refine || !settings.stageCritic ? 1 : clamp(Number(settings.maxRounds) || 1, 1, 3);
+  const rounds = refine || off.critic ? 1 : clamp(Number(settings.maxRounds) || 1, 1, 3);
   const minScore = Number(settings.minScore) || 6.5;
 
   let pool = [];
@@ -76,6 +89,7 @@ export async function runPipeline({ settings, post, styleId, hint, refine, conte
     emit({ stage: 'generate', status: 'run', note: round > 1 ? `раунд ${round}: переписую слабкі` : '' });
     const gen = await chatJson({
       settings,
+      apiKey: keyFor(settings, 'generate'),
       model: settings.models.generate,
       system: generateSystem(settings, style, lang, count),
       user: generateUser(post, ctx, { hint, feedback, refine }),
@@ -101,7 +115,7 @@ export async function runPipeline({ settings, post, styleId, hint, refine, conte
     emit({ stage: 'generate', status: 'done', note: `${items.length} варіант(и)` });
 
     // 3. Граматика
-    if (settings.stageGrammar) {
+    if (!off.grammar) {
       emit({ stage: 'grammar', status: 'run' });
       if (settings.languageTool) {
         await Promise.all(items.map(async (it) => (it.lt = await languageTool(it.text, lang))));
@@ -109,6 +123,7 @@ export async function runPipeline({ settings, post, styleId, hint, refine, conte
       try {
         const g = await chatJson({
           settings,
+          apiKey: keyFor(settings, 'grammar'),
           model: settings.models.grammar,
           system: grammarSystem(lang, bannedList.slice(0, 12).join(', ')),
           user: grammarUser(items),
@@ -136,15 +151,16 @@ export async function runPipeline({ settings, post, styleId, hint, refine, conte
         emit({ stage: 'grammar', status: 'error', note: e.message });
       }
     } else {
-      emit({ stage: 'grammar', status: 'skip', note: 'вимкнено' });
+      emit({ stage: 'grammar', status: 'skip', note: off.grammar });
     }
 
     // 4. Критик
-    if (settings.stageCritic) {
+    if (!off.critic) {
       emit({ stage: 'critic', status: 'run' });
       try {
         const c = await chatJson({
           settings,
+          apiKey: keyFor(settings, 'critic'),
           model: settings.models.critic,
           system: CRITIC_SYSTEM,
           user: criticUser(post, ctx, items),
@@ -171,14 +187,14 @@ export async function runPipeline({ settings, post, styleId, hint, refine, conte
         emit({ stage: 'critic', status: 'error', note: e.message });
       }
     } else {
-      emit({ stage: 'critic', status: 'skip', note: 'вимкнено' });
+      emit({ stage: 'critic', status: 'skip', note: off.critic });
     }
 
     items.forEach((it) => (it.score = score(it)));
     const seen = new Set(pool.map((p) => p.text));
     pool = [...pool, ...items.filter((it) => !seen.has(it.text))].sort((a, b) => b.score - a.score);
     const good = pool.filter((it) => it.score >= minScore).length;
-    if (settings.stageCritic && items.some((it) => it.critic)) {
+    if (!off.critic && items.some((it) => it.critic)) {
       emit({ stage: 'critic', status: 'done', note: `найкраща оцінка ${pool[0].score}/10` });
     }
 

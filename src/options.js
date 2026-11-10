@@ -3,14 +3,82 @@ import { parseBannedList } from './checks.js';
 
 const $ = (id) => document.getElementById(id);
 const FIELDS = [
-  'apiKey', 'reasoningEffort', 'temperature', 'replyLanguage', 'variants', 'length', 'maxChars',
+  'keyFallback', 'reasoningEffort', 'temperature', 'replyLanguage', 'variants', 'length', 'maxChars',
   'showTranslation', 'lowercase', 'replaceDashes', 'allowEmoji', 'allowHashtags',
   'persona', 'voiceExamples', 'extraRules', 'defaultStyleId', 'bannedWords', 'patternChecks',
-  'stageGrammar', 'languageTool', 'stageCritic', 'minScore', 'maxRounds',
+  'stageContext', 'stageGrammar', 'languageTool', 'stageCritic', 'minScore', 'maxRounds',
   'autoInsert', 'hideSensitiveWarning', 'history',
 ];
 const NUMERIC = new Set(['temperature', 'variants', 'maxChars', 'minScore', 'maxRounds']);
 const STAGES = ['context', 'generate', 'grammar', 'critic'];
+const STAGE_INFO = {
+  context: { n: 1, title: 'Контекст поста', flag: 'stageContext', desc: 'Розбирає пост: суть, тон, підтекст, слабкі місця, переклад. Без нього генерація бачить лише сирий текст.' },
+  generate: { n: 2, title: 'Генерація реплаїв', flag: null, desc: 'Пише варіанти у вибраному стилі з твоїм голосом і забороною ШІ-слів.' },
+  grammar: { n: 3, title: 'Перевірка грамотності', flag: 'stageGrammar', desc: 'Виправляє орфографію, пунктуацію, русизми й суржик, не змінюючи зміст.' },
+  critic: { n: 4, title: 'Оцінка: чіпляє / авторське', flag: 'stageCritic', desc: 'Оцінює, чи тригерить автора, чи звучить по-людськи, чи не загальник. Слабкі варіанти переписуються.' },
+};
+
+function renderStages() {
+  $('stages').innerHTML = STAGES.map((k) => {
+    const i = STAGE_INFO[k];
+    return `<div class="stage" id="st_${k}">
+      <div class="top"><b>API ${i.n}. ${i.title}</b>
+        ${i.flag ? `<label class="chk" style="margin:0"><input id="${i.flag}" type="checkbox" /> увімкнено</label>` : '<span class="req">обов\'язкове</span>'}</div>
+      <div class="desc">${i.desc}</div>
+      <div class="row">
+        <input id="k_${k}" type="password" placeholder="gsk_... ключ для API ${i.n}" autocomplete="off" />
+        <button class="ghost" type="button" data-eye="${k}">👁</button>
+        <button type="button" data-test="${k}">Перевірити</button>
+      </div>
+      <label>Модель <input id="m_${k}" list="models" /></label>
+      <div class="stat muted" id="ks_${k}"></div>
+    </div>`;
+  }).join('');
+}
+renderStages();
+
+function updateStageLook() {
+  for (const k of STAGES) {
+    const flag = STAGE_INFO[k].flag;
+    const hasKey = $(`k_${k}`).value.trim() || ($('keyFallback').checked && $('k_generate').value.trim());
+    const enabled = !flag || $(flag).checked;
+    $(`st_${k}`).classList.toggle('off', !enabled || !hasKey);
+    const stat = $(`ks_${k}`);
+    if (stat.dataset.tested) continue;
+    stat.className = 'stat muted';
+    stat.textContent = !enabled ? 'Вимкнено: етап буде пропущено' : !hasKey ? (flag ? 'Немає ключа: етап буде пропущено' : 'Без цього ключа розширення не працює') : '';
+  }
+}
+
+document.addEventListener('click', async (e) => {
+  const eye = e.target.closest('[data-eye]');
+  if (eye) {
+    const inp = $(`k_${eye.dataset.eye}`);
+    inp.type = inp.type === 'password' ? 'text' : 'password';
+    return;
+  }
+  const btn = e.target.closest('[data-test]');
+  if (!btn) return;
+  const k = btn.dataset.test;
+  const st = $(`ks_${k}`);
+  const key = $(`k_${k}`).value.trim() || ($('keyFallback').checked ? $('k_generate').value.trim() : '');
+  st.dataset.tested = '1';
+  st.className = 'stat muted';
+  st.textContent = 'Перевіряю…';
+  const r = await chrome.runtime.sendMessage({ type: 'listModels', apiKey: key });
+  if (r?.error) {
+    st.className = 'stat bad';
+    st.textContent = `✗ ${r.error}`;
+    return;
+  }
+  const models = r.models || [];
+  $('models').innerHTML = models.map((m) => `<option value="${m}"></option>`).join('');
+  const model = $(`m_${k}`).value.trim();
+  st.className = models.includes(model) ? 'stat ok' : 'stat bad';
+  st.textContent = models.includes(model)
+    ? `✓ Ключ працює, модель ${model} доступна`
+    : `Ключ працює, але моделі «${model}» немає. Обери зі списку (${models.length} доступно).`;
+});
 
 let s;
 
@@ -27,12 +95,16 @@ function render() {
     if (el.type === 'checkbox') el.checked = !!s[f];
     else if (f !== 'defaultStyleId') el.value = s[f] ?? '';
   }
-  STAGES.forEach((k) => ($(`m_${k}`).value = s.models[k] || ''));
+  STAGES.forEach((k) => {
+    $(`m_${k}`).value = s.models[k] || '';
+    $(`k_${k}`).value = s.keys[k] || '';
+  });
   renderStyles();
   updateLabels();
 }
 
 function updateLabels() {
+  updateStageLook();
   $('tempVal').textContent = $('temperature').value;
   $('minScoreVal').textContent = $('minScore').value;
   $('bannedCount').textContent = `${parseBannedList($('bannedWords').value).length} слів/фраз`;
@@ -87,8 +159,10 @@ function save() {
     if (!el) continue;
     s[f] = el.type === 'checkbox' ? el.checked : NUMERIC.has(f) ? Number(el.value) : el.value;
   }
-  s.apiKey = s.apiKey.trim();
-  STAGES.forEach((k) => (s.models[k] = $(`m_${k}`).value.trim() || s.models[k]));
+  STAGES.forEach((k) => {
+    s.models[k] = $(`m_${k}`).value.trim() || s.models[k];
+    s.keys[k] = $(`k_${k}`).value.trim();
+  });
   updateLabels();
   clearTimeout(t);
   t = setTimeout(async () => {
@@ -100,27 +174,10 @@ function save() {
 
 document.addEventListener('input', (e) => {
   if (e.target.closest('#styles') || e.target.id === 'importFile') return;
+  const m = e.target.id.match(/^[km]_(\w+)$/);
+  if (m) delete $(`ks_${m[1]}`).dataset.tested;
   save();
 });
-
-$('toggleKey').onclick = () => ($('apiKey').type = $('apiKey').type === 'password' ? 'text' : 'password');
-
-$('testKey').onclick = async () => {
-  const st = $('keyStatus');
-  st.className = 'muted';
-  st.textContent = 'Перевіряю…';
-  const r = await chrome.runtime.sendMessage({ type: 'listModels', override: { apiKey: $('apiKey').value.trim() } });
-  if (r?.error) {
-    st.className = 'bad';
-    st.textContent = `✗ ${r.error}`;
-    return;
-  }
-  const models = r.models || [];
-  $('models').innerHTML = models.map((m) => `<option value="${m}"></option>`).join('');
-  const missing = STAGES.map((k) => s.models[k]).filter((m) => !models.includes(m));
-  st.className = 'ok';
-  st.textContent = `✓ Ключ працює. Доступно моделей: ${models.length}.${missing.length ? ` Увага, недоступні: ${[...new Set(missing)].join(', ')}` : ''}`;
-};
 
 $('addStyle').onclick = () => {
   s.styles.push({ id: `custom-${Date.now()}`, name: 'Мій стиль', emoji: '✨', prompt: '' });
@@ -140,7 +197,7 @@ $('resetBanned').onclick = () => {
 };
 
 $('export').onclick = () => {
-  const { apiKey, ...rest } = s;
+  const { keys, ...rest } = s;
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([JSON.stringify(rest, null, 2)], { type: 'application/json' }));
   a.download = 'x-reply-writer-settings.json';
@@ -151,8 +208,8 @@ $('importFile').onchange = async (e) => {
   const file = e.target.files[0];
   if (!file) return;
   try {
-    const data = JSON.parse(await file.text());
-    s = mergeSettings({ ...data, apiKey: s.apiKey });
+    const { keys: _ignored, apiKey: _old, ...data } = JSON.parse(await file.text());
+    s = mergeSettings({ ...data, keys: s.keys });
     await chrome.storage.local.set({ settings: s });
     render();
     alert('Імпортовано');

@@ -50,4 +50,11 @@ code { background: #16181c; padding: 1px 4px; border-radius: 4px; }
 .saved.show { opacity: 1; }
 .style { border: 1px solid var(--line); border-radius: 12px; padding: 10px; margin-bottom: 8px; }
 .style .row input.emoji { flex: 0 0 56px; text-align: center; }
+.stage { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-bottom: 10px; }
+.stage.off { opacity: 0.55; }
+.stage .top { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+.stage .top b { font-size: 14px; }
+.stage .desc { color: var(--muted); font-size: 12px; margin: 2px 0 6px; }
+.stage .req { color: #ffd400; font-size: 12px; }
+.stage .stat { font-size: 12px; margin: 4px 0 0; min-height: 1em; }
 .style textarea { margin-top: 6px; }

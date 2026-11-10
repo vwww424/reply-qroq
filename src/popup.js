@@ -5,9 +5,17 @@ document.getElementById('opts').onclick = () => chrome.runtime.openOptionsPage()
 (async () => {
   const { settings = {}, history = [] } = await chrome.storage.local.get(['settings', 'history']);
   const status = document.getElementById('status');
-  status.innerHTML = settings.apiKey
-    ? `<span class="ok">● Ключ Groq додано.</span> <span class="muted">Відкрий x.com і натисни ✎ біля поста.</span>`
-    : `<span class="bad">● Немає API ключа.</span> <span class="muted">Додай його в налаштуваннях.</span>`;
+  const s = settings;
+  const k = s.keys || {};
+  const parts = [
+    ['1 контекст', k.context && s.stageContext !== false],
+    ['2 генерація', k.generate || s.apiKey],
+    ['3 граматика', k.grammar && s.stageGrammar !== false],
+    ['4 оцінка', k.critic && s.stageCritic !== false],
+  ].map(([n, on]) => `<span class="${on || (s.keyFallback && k.generate) ? 'ok' : 'muted'}">● ${n}</span>`);
+  status.innerHTML = (k.generate || s.apiKey)
+    ? `${parts.join(' ')}<br><span class="muted">Відкрий x.com і натисни ✎ біля поста.</span>`
+    : `<span class="bad">● Немає ключа генерації.</span> <span class="muted">Додай його в налаштуваннях.</span>`;
 
   const list = document.getElementById('list');
   if (!history.length) {
