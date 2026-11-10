@@ -109,7 +109,10 @@ console.log(JSON.stringify(cards, null, 1));
 // вставити найкращий
 await page.evaluate(() => document.getElementById('trh-host').shadowRoot.querySelector('[data-act="insert"]').click());
 await page.waitForFunction(() => document.querySelector('[role="dialog"] [data-testid="tweetTextarea_0"]')?.textContent.length > 5, { timeout: 5000 });
-console.log('inserted:', await page.$eval('[role="dialog"] [data-testid="tweetTextarea_0"]', (e) => e.textContent));
+await new Promise((r) => setTimeout(r, 1200)); // дати редактору перемалюватись
+const inserted = await page.$eval('[role="dialog"] [data-testid="tweetTextarea_0"]', (e) => e.textContent.replace(/\u00a0/g, ' '));
+console.log('inserted:', inserted);
+if (inserted !== cards[0].text) throw new Error(`reply must be inserted exactly once, got: ${inserted}`);
 await page.screenshot({ path: `${OUT}/3-inserted.png` });
 await new Promise(r=>setTimeout(r,800)); const hist = await sw.evaluate(async () => (await chrome.storage.local.get('history')).history);
 console.log('history entries:', hist?.length, hist?.[0]?.author);

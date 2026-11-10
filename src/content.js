@@ -110,28 +110,73 @@
   const editableIn = (el) =>
     el && (el.isContentEditable ? el : el.querySelector('[contenteditable="true"]') || el.closest('[contenteditable="true"]'));
 
-  async function insertReply(article, text) {
-    article.querySelector('[data-testid="reply"]')?.click();
-    let box = await waitFor(() => editableIn(document.querySelector('[role="dialog"] [data-testid="tweetTextarea_0"]')), 3500);
-    if (!box) box = editableIn(document.querySelector('[data-testid="tweetTextarea_0"]'));
-    if (!box) return false;
+  const norm = (s) => String(s || '').replace(/[\u00a0\u200b\ufeff]/g, ' ').replace(/\s+/g, ' ').trim();
+  const countIn = (hay, needle) => (needle ? hay.split(needle).length - 1 : 0);
+  // Редактор X перемальовує поле асинхронно, тому чекаємо, поки текст «осяде».
+  async function settle(box, timeout = 1200) {
+    let last = null;
+    let stableSince = Date.now();
+    const t0 = Date.now();
+    while (Date.now() - t0 < timeout) {
+      const cur = norm(box.textContent);
+      if (cur !== last) {
+        last = cur;
+        stableSince = Date.now();
+      } else if (cur && Date.now() - stableSince >= 250) break;
+      await sleep(50);
+    }
+    return norm(box.textContent);
+  }
+  const findBox = () =>
+    editableIn(document.querySelector('[role="dialog"] [data-testid="tweetTextarea_0"]')) ||
+    editableIn(document.querySelector('[data-testid="tweetTextarea_0"]'));
+  function selectAll(box) {
     box.focus();
-    await sleep(60);
     const sel = window.getSelection();
     const range = document.createRange();
     range.selectNodeContents(box);
     sel.removeAllRanges();
-    sel.addRange(range); // замінюємо все, що вже було в полі
-    document.execCommand('insertText', false, text);
-    await sleep(120);
-    if (!box.textContent.includes(text.slice(0, 15))) {
-      // запасний шлях для Draft.js
-      const dt = new DataTransfer();
-      dt.setData('text/plain', text);
-      box.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
-      await sleep(120);
+    sel.addRange(range);
+  }
+
+  let inserting = false;
+  async function insertReply(article, text) {
+    if (inserting) return null; // захист від подвійного кліку / автовставки
+    inserting = true;
+    try {
+      article.querySelector('[data-testid="reply"]')?.click();
+      const box = await waitFor(() => editableIn(document.querySelector('[role="dialog"] [data-testid="tweetTextarea_0"]')), 3500) || findBox();
+      if (!box) return false;
+      const want = norm(text);
+      selectAll(box); // замінюємо все, що вже було в полі
+      await sleep(60);
+      document.execCommand('insertText', false, text);
+      let got = await settle(findBox() || box);
+
+      // Запасний шлях лише коли поле лишилось ПОРОЖНІМ — інакше буде дубль.
+      if (!got) {
+        const b = findBox() || box;
+        selectAll(b);
+        const dt = new DataTransfer();
+        dt.setData('text/plain', text);
+        b.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+        got = await settle(findBox() || b);
+      }
+
+      // Якщо редактор усе ж задублював — прибираємо зайве.
+      if (countIn(got, want) > 1) {
+        const b = findBox() || box;
+        selectAll(b);
+        document.execCommand('delete');
+        await settle(b, 600);
+        selectAll(b);
+        document.execCommand('insertText', false, text);
+        got = await settle(findBox() || b);
+      }
+      return countIn(got, want) === 1;
+    } finally {
+      inserting = false;
     }
-    return box.textContent.includes(text.slice(0, 15));
   }
 
   async function copy(text) {
@@ -444,6 +489,7 @@
     async function doInsert(article, r) {
       close();
       const ok = await insertReply(article, r.text);
+      if (ok === null) return; // вставка вже йде
       if (ok) toast('Вставлено — перевір і відправ');
       else {
         await copy(r.text);

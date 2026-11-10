@@ -23,11 +23,27 @@ article{padding:12px 16px;border-bottom:1px solid #2f3336;display:block}
 </article>
 </main>
 <script>
+// Імітація редактора X (Draft.js): сам обробляє beforeinput/paste і перемальовує текст із затримкою.
+function makeEditor(box) {
+  let state = '';
+  let selAll = false;
+  const render = () => setTimeout(() => { box.innerHTML = state ? `<div data-contents="true"><span>${state.replace(/ /g, '\u00a0')}</span></div>` : ''; }, 250);
+  document.addEventListener('selectionchange', () => {
+    const s = getSelection();
+    selAll = s.rangeCount > 0 && box.contains(s.anchorNode) && s.toString().length > 0 && s.toString().length >= box.textContent.length;
+  });
+  const insert = (t) => { state = selAll || !state ? t : state + t; selAll = false; render(); };
+  box.addEventListener('beforeinput', (e) => { if (e.inputType === 'insertText' || e.inputType === 'insertReplacementText') { e.preventDefault(); insert(e.data); } });
+  // нативна вставка (execCommand): редактор забирає текст у свій стан і перемальовує асинхронно
+  box.addEventListener('input', () => { state = box.textContent.replace(/\u00a0/g, ' '); box.innerHTML = ''; render(); });
+  box.addEventListener('paste', (e) => { e.preventDefault(); insert(e.clipboardData.getData('text/plain')); });
+}
 document.addEventListener('click', e => {
   if (!e.target.closest('[data-testid="reply"]')) return;
   if (document.querySelector('[role="dialog"]')) return;
   const d = document.createElement('div'); d.setAttribute('role','dialog');
   d.innerHTML = '<div data-testid="tweetTextarea_0" contenteditable="true" role="textbox"></div><button>Відповісти</button>';
   document.body.appendChild(d);
+  makeEditor(d.querySelector('[contenteditable]'));
 });
 </script></body></html>
