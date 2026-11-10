@@ -1,0 +1,53 @@
+:root {
+  color-scheme: dark;
+  --bg: #000;
+  --card: #0f1419;
+  --line: #2f3336;
+  --fg: #e7e9ea;
+  --muted: #71767b;
+  --blue: #1d9bf0;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 14px/1.5 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+main { max-width: 760px; margin: 0 auto; padding: 24px 16px 80px; }
+header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+h1 { font-size: 22px; margin: 0; }
+h2 { font-size: 16px; margin: 0 0 10px; }
+section { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px; margin-bottom: 14px; }
+label { display: block; margin: 8px 0; color: #c5c8cb; }
+input:not([type="checkbox"]):not([type="range"]), select, textarea {
+  display: block; width: 100%; margin-top: 4px; background: #000; color: var(--fg);
+  border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; font: inherit;
+}
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--blue); }
+input[type="range"] { width: 100%; }
+textarea { resize: vertical; }
+.mono { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.row input { flex: 1; margin-top: 0 !important; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
+@media (max-width: 600px) { .grid2 { grid-template-columns: 1fr; } }
+.chk { display: flex; gap: 8px; align-items: flex-start; }
+.chk input { margin-top: 3px; }
+button {
+  background: var(--blue); color: #fff; border: 0; border-radius: 999px; padding: 8px 14px;
+  font: inherit; font-weight: 600; cursor: pointer; white-space: nowrap;
+}
+button.ghost { background: transparent; border: 1px solid var(--line); color: var(--fg); }
+button.ghost:hover { background: #16181c; }
+button.danger { color: #f4212e; }
+.muted { color: var(--muted); font-size: 13px; margin: 6px 0; }
+.ok { color: #00ba7c; }
+.bad { color: #f4212e; }
+a { color: var(--blue); }
+code { background: #16181c; padding: 1px 4px; border-radius: 4px; }
+.saved { color: #00ba7c; opacity: 0; transition: opacity 0.3s; }
+.saved.show { opacity: 1; }
+.style { border: 1px solid var(--line); border-radius: 12px; padding: 10px; margin-bottom: 8px; }
+.style .row input.emoji { flex: 0 0 56px; text-align: center; }
+.style textarea { margin-top: 6px; }

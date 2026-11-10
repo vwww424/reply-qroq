@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="utf-8" />
+    <title>X Reply Writer — налаштування</title>
+    <link rel="stylesheet" href="options.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>✍️ X Reply Writer</h1>
+        <span id="saved" class="saved">Збережено ✓</span>
+      </header>
+
+      <section>
+        <h2>Groq API</h2>
+        <label>API ключ
+          <div class="row">
+            <input id="apiKey" type="password" placeholder="gsk_..." autocomplete="off" />
+            <button id="toggleKey" class="ghost" type="button">👁</button>
+            <button id="testKey" type="button">Перевірити</button>
+          </div>
+        </label>
+        <p class="muted">Безкоштовний ключ: <a href="https://console.groq.com/keys" target="_blank">console.groq.com/keys</a>. Ключ зберігається лише локально в браузері.</p>
+        <p id="keyStatus" class="muted"></p>
+      </section>
+
+      <section>
+        <h2>Моделі для кожного етапу</h2>
+        <p class="muted">Різні моделі = різні ліміти безкоштовного тарифу, тому навантаження розкидано. Після «Перевірити» список заповниться доступними моделями.</p>
+        <div class="grid2">
+          <label>1. Контекст поста <input id="m_context" list="models" /></label>
+          <label>2. Генерація реплаїв <input id="m_generate" list="models" /></label>
+          <label>3. Перевірка грамотності <input id="m_grammar" list="models" /></label>
+          <label>4. Оцінка (чіпляє / авторське) <input id="m_critic" list="models" /></label>
+        </div>
+        <datalist id="models">
+          <option value="openai/gpt-oss-120b"></option>
+          <option value="openai/gpt-oss-20b"></option>
+          <option value="llama-3.3-70b-versatile"></option>
+          <option value="llama-3.1-8b-instant"></option>
+          <option value="qwen/qwen3.8-27b"></option>
+          <option value="minimaxai/minimax-m2.7"></option>
+        </datalist>
+        <div class="grid2">
+          <label>Reasoning (для gpt-oss)
+            <select id="reasoningEffort">
+              <option value="low">low — швидко</option>
+              <option value="medium">medium</option>
+              <option value="high">high — повільно</option>
+            </select>
+          </label>
+          <label>Креативність генерації: <b id="tempVal"></b>
+            <input id="temperature" type="range" min="0.3" max="1.3" step="0.05" />
+          </label>
+        </div>
+      </section>
+
+      <section>
+        <h2>Мова та формат</h2>
+        <div class="grid2">
+          <label>Мова реплаю
+            <select id="replyLanguage">
+              <option value="uk">Українська</option>
+              <option value="en">English</option>
+              <option value="auto">Як у пості (рос. → укр.)</option>
+            </select>
+          </label>
+          <label>Кількість варіантів
+            <select id="variants"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select>
+          </label>
+          <label>Довжина
+            <select id="length">
+              <option value="short">Коротко (до 120)</option>
+              <option value="medium">Середньо (до 200)</option>
+              <option value="long">Довго (до 280)</option>
+            </select>
+          </label>
+          <label>Ліміт символів (Premium — більше)
+            <input id="maxChars" type="number" min="100" max="25000" />
+          </label>
+        </div>
+        <label class="chk"><input id="showTranslation" type="checkbox" /> Показувати переклад українською, якщо реплай іншою мовою</label>
+        <label class="chk"><input id="lowercase" type="checkbox" /> Писати з маленької літери і без крапки в кінці (по-твіттерному)</label>
+        <label class="chk"><input id="replaceDashes" type="checkbox" /> Автозаміна довгого тире «—» на дефіс</label>
+        <label class="chk"><input id="allowEmoji" type="checkbox" /> Дозволити емодзі</label>
+        <label class="chk"><input id="allowHashtags" type="checkbox" /> Дозволити хештеги</label>
+      </section>
+
+      <section>
+        <h2>Мій голос</h2>
+        <label>Про мене (хто я, ніша, погляди — щоб реплаї звучали як від тебе)
+          <textarea id="persona" rows="3" placeholder="Напр.: розробник з Києва, 28 років, пишу про AI і стартапи, скептично ставлюсь до хайпу, люблю сухий гумор"></textarea>
+        </label>
+        <label>Приклади моїх твітів/реплаїв (2-5 штук, кожен з нового рядка)
+          <textarea id="voiceExamples" rows="4" placeholder="ну це класика: спочатку рейзять раунд, потім шукають продукт"></textarea>
+        </label>
+        <label>Додаткові правила
+          <textarea id="extraRules" rows="2" placeholder="Напр.: ніколи не згадуй політику; не використовуй слово «чесно»"></textarea>
+        </label>
+      </section>
+
+      <section>
+        <h2>Стилі</h2>
+        <p class="muted">Ці кнопки бачиш у панелі біля поста. Інструкція йде прямо в промпт.</p>
+        <div id="styles"></div>
+        <div class="row">
+          <button id="addStyle" type="button">+ Додати стиль</button>
+          <button id="resetStyles" class="ghost" type="button">Скинути до стандартних</button>
+        </div>
+        <label>Стиль за замовчуванням <select id="defaultStyleId"></select></label>
+      </section>
+
+      <section>
+        <h2>Заборонені «ШІ-слова»</h2>
+        <p class="muted">Один рядок = слово або фраза. <code>*</code> = будь-яке закінчення (<code>занурю*</code>). Рядки з <code>//</code> — коментарі. Список іде в промпт генерації і перевіряється локально після кожного етапу.</p>
+        <textarea id="bannedWords" rows="12" class="mono"></textarea>
+        <div class="row">
+          <span id="bannedCount" class="muted"></span>
+          <button id="resetBanned" class="ghost" type="button">Скинути до стандартного списку</button>
+        </div>
+        <label class="chk"><input id="patternChecks" type="checkbox" /> Ловити ШІ-конструкції: «не просто X, а Y», довге тире, російські літери, компліменти на початку, «а ви що думаєте?»</label>
+      </section>
+
+      <section>
+        <h2>Перевірки</h2>
+        <label class="chk"><input id="stageGrammar" type="checkbox" /> Етап 3: перевірка орфографії і граматики (LLM-коректор)</label>
+        <label class="chk"><input id="languageTool" type="checkbox" /> + LanguageTool (безкоштовний спелчекер, підказки для коректора)</label>
+        <label class="chk"><input id="stageCritic" type="checkbox" /> Етап 4: оцінка — чи чіпляє автора і чи звучить по-людськи</label>
+        <div class="grid2">
+          <label>Мінімальна оцінка: <b id="minScoreVal"></b>
+            <input id="minScore" type="range" min="3" max="9" step="0.5" />
+          </label>
+          <label>Раундів переписування слабких
+            <select id="maxRounds"><option value="1">1 (без повтору)</option><option value="2">2</option><option value="3">3</option></select>
+          </label>
+        </div>
+      </section>
+
+      <section>
+        <h2>Інше</h2>
+        <label class="chk"><input id="autoInsert" type="checkbox" /> Одразу вставляти найкращий варіант у поле реплаю</label>
+        <label class="chk"><input id="hideSensitiveWarning" type="checkbox" /> Не показувати попередження про чутливі теми</label>
+        <label class="chk"><input id="history" type="checkbox" /> Зберігати історію вставлених/скопійованих реплаїв</label>
+        <div class="row">
+          <button id="export" class="ghost" type="button">Експорт налаштувань</button>
+          <button id="import" class="ghost" type="button">Імпорт</button>
+          <input id="importFile" type="file" accept="application/json" hidden />
+          <button id="clearHistory" class="ghost danger" type="button">Очистити історію</button>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="options.js"></script>
+  </body>
+</html>

@@ -1,0 +1,33 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><style>
+body{background:#000;color:#e7e9ea;font-family:-apple-system,Segoe UI,Roboto,sans-serif;margin:0}
+main{width:600px;margin:0 auto;border-left:1px solid #2f3336;border-right:1px solid #2f3336;min-height:100vh}
+article{padding:12px 16px;border-bottom:1px solid #2f3336;display:block}
+[data-testid="User-Name"]{display:flex;gap:4px;font-weight:700} [data-testid="User-Name"] span+span{color:#71767b;font-weight:400}
+[data-testid="tweetText"]{margin:4px 0 10px;font-size:15px}
+[role="group"]{display:flex;justify-content:space-between;max-width:425px;color:#71767b}
+[role="group"] button{background:none;border:0;color:#71767b;width:34px;height:34px}
+[role="dialog"]{position:fixed;top:60px;left:50%;transform:translateX(-50%);width:560px;background:#000;border:1px solid #2f3336;border-radius:16px;padding:16px}
+[contenteditable]{min-height:80px;font-size:18px;outline:none;padding:8px}
+</style></head><body><main>
+<article data-testid="tweet">
+ <div data-testid="User-Name"><span>Startup Guru</span><span>@startupguru</span><span>· 2h</span></div>
+ <div data-testid="tweetText"><span>90% of startups die because of a bad team. Product is secondary. </span><img alt="🔥"></div>
+ <a href="https://x.com/startupguru/status/123"><time>2h</time></a>
+ <div role="group"><button data-testid="reply">💬</button><button data-testid="retweet">🔁</button><button data-testid="like">♡</button><button>📊</button><button>⤴</button></div>
+</article>
+<article data-testid="tweet">
+ <div data-testid="User-Name"><span>Олена</span><span>@olena</span></div>
+ <div data-testid="tweetText"><span>Купила каву за 150 грн. Це вже норма?</span></div>
+ <div role="group"><button data-testid="reply">💬</button><button>🔁</button><button>♡</button></div>
+</article>
+</main>
+<script>
+document.addEventListener('click', e => {
+  if (!e.target.closest('[data-testid="reply"]')) return;
+  if (document.querySelector('[role="dialog"]')) return;
+  const d = document.createElement('div'); d.setAttribute('role','dialog');
+  d.innerHTML = '<div data-testid="tweetTextarea_0" contenteditable="true" role="textbox"></div><button>Відповісти</button>';
+  document.body.appendChild(d);
+});
+</script></body></html>

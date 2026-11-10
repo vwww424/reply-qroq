@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      body { margin: 0; width: 360px; background: #000; color: #e7e9ea; font: 13px/1.45 -apple-system, "Segoe UI", Roboto, sans-serif; }
+      header { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid #2f3336; }
+      h1 { font-size: 15px; margin: 0; }
+      button { background: #1d9bf0; color: #fff; border: 0; border-radius: 999px; padding: 5px 12px; font: inherit; font-weight: 600; cursor: pointer; }
+      .ghost { background: transparent; border: 1px solid #2f3336; color: #e7e9ea; padding: 3px 9px; font-size: 12px; }
+      .status { padding: 10px 14px; border-bottom: 1px solid #2f3336; }
+      .ok { color: #00ba7c; } .bad { color: #f4212e; }
+      .muted { color: #71767b; }
+      .list { max-height: 380px; overflow-y: auto; }
+      .item { padding: 10px 14px; border-bottom: 1px solid #16181c; }
+      .item .reply { white-space: pre-wrap; margin: 4px 0; }
+      .item .meta { display: flex; gap: 8px; align-items: center; font-size: 12px; color: #71767b; }
+      .item .meta a { color: #1d9bf0; text-decoration: none; }
+      .item .meta button { margin-left: auto; }
+      .empty { padding: 20px 14px; color: #71767b; text-align: center; }
+    </style>
+  </head>
+  <body>
+    <header><h1>✍️ X Reply Writer</h1><button id="opts">Налаштування</button></header>
+    <div class="status" id="status"></div>
+    <div class="list" id="list"></div>
+    <script src="popup.js"></script>
+  </body>
+</html>

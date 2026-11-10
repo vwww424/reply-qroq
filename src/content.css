@@ -1,0 +1,28 @@
+.trh-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+.trh-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: rgb(113, 118, 123);
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+}
+.trh-btn:hover {
+  background: rgba(29, 155, 240, 0.12);
+  color: rgb(29, 155, 240);
+}
+.trh-btn svg {
+  width: 19px;
+  height: 19px;
+}
